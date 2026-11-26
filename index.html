@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Farah’s Little World</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --panel:#fffaf2; --ink:#3b2f4a; --accent:#7e57a8; --soft:#efe4fa; --muted:#7a6d88;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --panel:#2a2236; --ink:#f3ecfa; --accent:#c9a6ee; --soft:#3a2f4d; --muted:#b5a8c4; color-scheme:dark; }
+}
+:root[data-theme="dark"]{ --panel:#2a2236; --ink:#f3ecfa; --accent:#c9a6ee; --soft:#3a2f4d; --muted:#b5a8c4; color-scheme:dark; }
+html,body{height:100%;margin:0;overflow:hidden;background:#bde8a0;font-family:'Fredoka',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink);touch-action:none}
+canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;left:12px;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--panel);padding:8px 14px;border-radius:16px;font-weight:600;box-shadow:0 3px 0 rgba(0,0,0,.15);font-size:15px}
+#hint{position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--panel);padding:8px 14px;border-radius:16px;font-size:13px;color:var(--muted);box-shadow:0 3px 0 rgba(0,0,0,.15);max-width:55vw}
+#panel{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(40,25,60,.45);padding:16px;z-index:5}
+#panel.open{display:flex}
+#card{background:var(--panel);border-radius:24px;max-width:460px;width:100%;max-height:82vh;overflow:auto;padding:22px 24px;box-shadow:0 6px 0 rgba(0,0,0,.2);touch-action:pan-y}
+#card h2{margin:0 0 2px;font-size:24px;color:var(--accent)}
+#card .sub{color:var(--muted);margin:0 0 12px;font-size:14px}
+#card ul{padding-left:20px;margin:8px 0;line-height:1.5}
+#card a{color:var(--accent)}
+#card .tag{display:inline-block;background:var(--soft);border-radius:999px;padding:3px 11px;margin:3px 3px 0 0;font-size:13px}
+#close{margin-top:14px;background:var(--accent);color:#fff;border:0;border-radius:14px;padding:10px 20px;font:inherit;font-weight:600;cursor:pointer}
+#close:focus-visible,#act:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+#touch{display:none}
+@media (pointer:coarse){
+  #touch{display:block}
+  #joy{position:fixed;left:calc(env(safe-area-inset-left,0px) + 24px);bottom:calc(env(safe-area-inset-bottom,0px) + 28px);width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.45);border:3px solid rgba(126,87,168,.6)}
+  #knob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:var(--accent)}
+  #act{position:fixed;right:28px;bottom:calc(env(safe-area-inset-bottom,0px) + 44px);width:84px;height:84px;border-radius:50%;border:0;background:var(--accent);color:#fff;font:600 18px 'Fredoka',sans-serif}
+  #hint{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<div id="hint">Move: WASD / arrows · Run: Shift · Enter a door: E</div>
+<div id="touch"><div id="joy"><div id="knob"></div></div><button id="act">Enter</button></div>
+<div id="panel" role="dialog" aria-modal="true"><div id="card"></div></div>
+
+<script>
+/* ============================================================
+   ✏️ EDIT HERE — everything about your world lives in CONFIG.
+   Add/remove places, change text, colours, emojis and positions.
+   World is 1800 x 1200. A place is a box: x,y = top-left corner,
+   w,h = size. The door is at the bottom-centre of each box.
+   ============================================================ */
+const CONFIG = {
+  name: "Farah",
+  worldW: 1800, worldH: 1200,
+  spawn: { x: 900, y: 680 },
+  playerColor: "#7e57a8",     // outfit colour
+  grassColor: "#bde8a0",
+  welcome: {
+    title: "Hi, I’m Farah Syazana! 👋",
+    sub: "Walk around and enter the buildings to discover what I do.",
+    html: "<p>Computer Science graduate from Yonsei University, into AI, GPU optimisation, cloud, and now IT support &amp; project coordination.</p>"
+  },
+  finale: {
+    title: "You found everything! 🎉",
+    sub: "Thanks for visiting my little world.",
+    html: "<p>Let’s talk: <a href='mailto:fsyazana02@gmail.com'>fsyazana02@gmail.com</a></p>"
+  },
+  places: [
+    { id:"work", emoji:"🏢", label:"MRCB Office", x:1380, y:480, w:240, h:160, color:"#9fd3f5", roof:"#4f93c9",
+      title:"MRCB Protégé – IT Support & PMO", sub:"MRCB (Malaysian Resources Corporation Berhad) · Apr 2026 – Present",
+      html:`<ul>
+        <li>Administer Microsoft 365 licences, Google Workspace (Super Admin) and Active Directory access.</li>
+        <li>IT support for end users: account provisioning, access control, issue resolution.</li>
+        <li>Liaison between business users and IFCA ERP support teams.</li>
+        <li>Lead the LMS × LinkedIn Learning integration (SSO, provisioning, licences).</li>
+        <li>Coordinate HR, IT and external vendors for digital learning projects.</li></ul>` },
+    { id:"yonsei", emoji:"🎓", label:"Yonsei University", x:140, y:120, w:260, h:170, color:"#f7c6d9", roof:"#d9709a",
+      title:"Yonsei University", sub:"Bachelor of Artificial Intelligence: Computer Science · Mar 2022 – Feb 2026",
+      html:`<ul>
+        <li>Thesis: “Optimization of Deep Learning Kernels Based on OpenAI Triton”.</li>
+        <li>People’s Choice Award 🏆</li></ul>` },
+    { id:"lab", emoji:"🤖", label:"Robot Lab (Harbin)", x:700, y:100, w:240, h:160, color:"#ffe3a3", roof:"#e0a93a",
+      title:"Harbin Institute of Technology", sub:"Global Summer School: Intelligent Robot · Jul 2025",
+      html:`<ul>
+        <li>Coursework in robotics, sensors and aerospace engineering fundamentals.</li>
+        <li>Hands-on labs and interdisciplinary team projects.</li>
+        <li>Designed and programmed a robot for an ice curling competition 🥌</li></ul>` },
+    { id:"cloud", emoji:"☁️", label:"Skills Tower", x:1220, y:110, w:220, h:170, color:"#d6c8f5", roof:"#8b6fd0",
+      title:"Skills & Certifications", sub:"What’s in my toolbox",
+      html:`<p>
+        <span class="tag">Python</span><span class="tag">Java</span><span class="tag">C/C++</span><span class="tag">PyTorch</span><span class="tag">CUDA</span><span class="tag">OpenAI Triton</span><span class="tag">Linux</span><span class="tag">AWS EC2 / S3 / IAM</span><span class="tag">Google Workspace</span><span class="tag">Service Desk</span><span class="tag">User Provisioning</span><span class="tag">Project Coordination</span></p>
+        <ul><li>AWS Certified Cloud Practitioner</li><li>AWS Foundations</li><li>ICDL Big Data</li><li>ICDL Data Analytics</li></ul>` },
+    { id:"arena", emoji:"🏆", label:"Hackathon Arena", x:1330, y:860, w:250, h:160, color:"#ffd0b0", roof:"#e07a4a",
+      title:"Awards & Activities", sub:"Hackathons, events and community",
+      html:`<ul>
+        <li>AWS ABC Living Lab Hackathon</li>
+        <li>Exhibitor, Dot Com Infoway</li>
+        <li>Cultural Ambassador, Sinchon World Youth Festival (SWYFT)</li>
+        <li>EIC Facilitator, The Kalsom Movement</li></ul>` },
+    { id:"cafe", emoji:"☕", label:"Language Café", x:760, y:900, w:220, h:150, color:"#fff1c9", roof:"#c98f5a",
+      title:"Languages", sub:"Say hello in three ways",
+      html:`<ul><li>English 🇬🇧</li><li>Bahasa Melayu 🇲🇾 — Hai!</li><li>한국어 🇰🇷 — 안녕하세요!</li></ul>` },
+    { id:"school", emoji:"💻", label:"UniKL", x:160, y:520, w:220, h:150, color:"#c9f0d6", roof:"#4fae7c",
+      title:"Universiti Kuala Lumpur", sub:"Foundation Degree in Science and Technology · Jul 2020 – Oct 2021",
+      html:`<ul><li>Programming Fundamentals — where it all started.</li></ul>` },
+    { id:"mail", emoji:"📮", label:"Contact Post", x:300, y:880, w:200, h:140, color:"#ffc9c9", roof:"#d65b5b",
+      title:"Say hi!", sub:"Based in Bandar Baru Bangi, Selangor",
+      html:`<ul>
+        <li>✉️ <a href="mailto:fsyazana02@gmail.com">fsyazana02@gmail.com</a></li>
+        <li>💼 <a href="https://www.linkedin.com/in/farahsyazanamohdkhidzir/" target="_blank" rel="noopener">LinkedIn</a></li></ul>` }
+  ]
+};
+/* ============== END OF EDITABLE CONTENT ============== */
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const panel = document.getElementById('panel'), card = document.getElementById('card'), hud = document.getElementById('hud');
+const W = CONFIG.worldW, H = CONFIG.worldH;
+let vw, vh, dpr, zoom;
+function resize(){
+  dpr = window.devicePixelRatio || 1; vw = innerWidth; vh = innerHeight;
+  cv.width = vw*dpr; cv.height = vh*dpr;
+  zoom = Math.min(1.1, Math.max(0.6, Math.min(vw/900, vh/650)));
+}
+addEventListener('resize', resize); resize();
+
+// seeded random so the world looks the same every visit
+let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+const places = CONFIG.places;
+places.forEach(p => { p.doorX = p.x + p.w/2; p.doorY = p.y + p.h + 14; });
+const hub = { x: CONFIG.spawn.x, y: CONFIG.spawn.y };
+function dSeg(px,py,ax,ay,bx,by){
+  const dx=bx-ax, dy=by-ay, t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+const nearPath = (x,y) => places.some(p => dSeg(x,y,p.doorX,p.doorY,hub.x,hub.y) < 50) || Math.hypot(x-hub.x,y-hub.y) < 130;
+const inPlace = (x,y,pad) => places.some(p => x>p.x-pad && x<p.x+p.w+pad && y>p.y-pad && y<p.y+p.h+pad+30);
+
+const trees = [], flowers = [];
+for (let i=0;i<500 && trees.length<70;i++){
+  const x=40+rnd()*(W-80), y=40+rnd()*(H-80);
+  if (nearPath(x,y) || inPlace(x,y,40) || trees.some(t=>Math.hypot(t.x-x,t.y-y)<70)) continue;
+  trees.push({x,y,r:14,s:0.8+rnd()*0.5});
+}
+for (let i=0;i<260;i++){ const x=rnd()*W, y=rnd()*H; if(!nearPath(x,y)&&!inPlace(x,y,0)) flowers.push({x,y,c:['#fff','#ffd1e6','#fff3a8'][i%3]}); }
+
+const player = { x:hub.x, y:hub.y+60, r:14, dir:1, t:0 };
+const keys = {}; let joy = {x:0,y:0}, nearby = null, panelOpen = false;
+const visited = new Set();
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (panelOpen){ if (k==='escape'||k==='e'||k==='enter') closePanel(); return; }
+  keys[k] = true;
+  if (k==='e'||k==='enter'||k===' ') interact();
+  if (k.startsWith('arrow')||k===' ') e.preventDefault();
+});
+addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function openPanel(t, sub, html){
+  card.innerHTML = `<h2>${t}</h2><p class="sub">${sub}</p>${html}<button id="close">Keep exploring</button>`;
+  panel.classList.add('open'); panelOpen = true;
+  document.getElementById('close').onclick = closePanel; document.getElementById('close').focus();
+  Object.keys(keys).forEach(k => keys[k]=false);
+}
+function closePanel(){
+  panel.classList.remove('open'); panelOpen = false;
+  if (visited.size === places.length && !closePanel.done){ closePanel.done = true; setTimeout(()=>openPanel(CONFIG.finale.title, CONFIG.finale.sub, CONFIG.finale.html), 250); }
+}
+panel.addEventListener('click', e => { if (e.target === panel) closePanel(); });
+function interact(){
+  if (!nearby) return;
+  visited.add(nearby.id); updateHud();
+  openPanel(nearby.title, nearby.sub, nearby.html);
+}
+function updateHud(){ hud.textContent = `🗺️ Discovered ${visited.size} / ${places.length}`; }
+updateHud();
+
+// touch controls
+const joyEl = document.getElementById('joy'), knob = document.getElementById('knob');
+function joyMove(t){
+  const r = joyEl.getBoundingClientRect(), cx = r.left+r.width/2, cy = r.top+r.height/2;
+  let dx = (t.clientX-cx)/50, dy = (t.clientY-cy)/50, m = Math.hypot(dx,dy);
+  if (m>1){ dx/=m; dy/=m; }
+  joy = {x:dx,y:dy}; knob.style.transform = `translate(${dx*30}px,${dy*30}px)`;
+}
+joyEl.addEventListener('touchstart', e => { e.preventDefault(); joyMove(e.touches[0]); }, {passive:false});
+joyEl.addEventListener('touchmove', e => { e.preventDefault(); joyMove(e.touches[0]); }, {passive:false});
+joyEl.addEventListener('touchend', () => { joy={x:0,y:0}; knob.style.transform=''; });
+document.getElementById('act').addEventListener('click', interact);
+
+function blocked(x,y,r){
+  if (x<r||y<r||x>W-r||y>H-r) return true;
+  for (const p of places) if (x+r>p.x && x-r<p.x+p.w && y+r>p.y+30 && y-r<p.y+p.h) return true;
+  for (const t of trees) if (Math.hypot(x-t.x,y-t.y) < r+t.r) return true;
+  return false;
+}
+function update(dt){
+  if (panelOpen){ return; }
+  let ax = (keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0) + joy.x;
+  let ay = (keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0) + joy.y;
+  const m = Math.hypot(ax,ay);
+  if (m>1){ ax/=m; ay/=m; }
+  const sp = (keys['shift']?300:185)*dt;
+  const nx = player.x + ax*sp, ny = player.y + ay*sp;
+  if (!blocked(nx,player.y,player.r)) player.x = nx;
+  if (!blocked(player.x,ny,player.r)) player.y = ny;
+  if (m>0.1){ player.t += dt*10; if (ax) player.dir = ax>0?1:-1; } else player.t = 0;
+  nearby = null; let best = 85;
+  for (const p of places){ const d = Math.hypot(player.x-p.doorX, player.y-p.doorY); if (d<best){ best=d; nearby=p; } }
+  document.getElementById('act').style.opacity = nearby ? 1 : .4;
+}
+
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+function drawPlace(p){
+  ctx.fillStyle='rgba(0,0,0,.12)'; rr(p.x+8,p.y+14,p.w,p.h,18); ctx.fill();
+  ctx.fillStyle=p.color; rr(p.x,p.y+30,p.w,p.h-30,14); ctx.fill();
+  ctx.fillStyle=p.roof; rr(p.x-10,p.y,p.w+20,56,18); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.25)'; rr(p.x,p.y+8,p.w,10,8); ctx.fill();
+  ctx.fillStyle='#fff'; for (let i=0;i<2;i++){ rr(p.x+22+i*(p.w-84),p.y+78,40,34,8); ctx.fill(); }
+  ctx.fillStyle='rgba(0,0,0,.18)'; rr(p.doorX-18,p.y+p.h-46,36,46,[18,18,0,0]); ctx.fill();
+  ctx.font='34px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(p.emoji,p.x+p.w/2,p.y+30);
+  ctx.font='600 15px Fredoka,system-ui,sans-serif';
+  const tw = ctx.measureText(p.label).width+22;
+  ctx.fillStyle='#fffaf2'; rr(p.x+p.w/2-tw/2,p.y+p.h+32,tw,26,13); ctx.fill();
+  ctx.fillStyle='#3b2f4a'; ctx.fillText(p.label,p.x+p.w/2,p.y+p.h+45);
+  if (visited.has(p.id)){ ctx.font='20px serif'; ctx.fillText('⭐',p.x+p.w-6,p.y+8); }
+  if (nearby===p){
+    const b = Math.sin(performance.now()/180)*3;
+    ctx.fillStyle='#7e57a8'; rr(p.doorX-48,p.y-34+b,96,26,13); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='600 14px Fredoka,system-ui,sans-serif'; ctx.fillText('Press E',p.doorX,p.y-21+b);
+  }
+}
+function drawTree(t){
+  ctx.fillStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(t.x,t.y+10,22*t.s,9*t.s,0,0,7); ctx.fill();
+  ctx.fillStyle='#9a6b45'; ctx.fillRect(t.x-5*t.s,t.y-6*t.s,10*t.s,18*t.s);
+  ctx.fillStyle='#4fae6a'; ctx.beginPath(); ctx.arc(t.x,t.y-22*t.s,26*t.s,0,7); ctx.fill();
+  ctx.fillStyle='#74c98a'; ctx.beginPath(); ctx.arc(t.x-7*t.s,t.y-29*t.s,12*t.s,0,7); ctx.fill();
+}
+function drawPlayer(){
+  const bob = Math.abs(Math.sin(player.t))*4, x=player.x, y=player.y-bob;
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(player.x,player.y+12,14,6,0,0,7); ctx.fill();
+  ctx.fillStyle=CONFIG.playerColor; rr(x-11,y-2,22,18,8); ctx.fill();
+  ctx.fillStyle='#ffdcc2'; ctx.beginPath(); ctx.arc(x,y-12,13,0,7); ctx.fill();
+  ctx.fillStyle=CONFIG.playerColor; ctx.beginPath(); ctx.arc(x,y-17,13,Math.PI,0); ctx.fill();
+  ctx.fillStyle='#3b2f4a'; const ex = player.dir*2;
+  ctx.beginPath(); ctx.arc(x-4+ex,y-11,1.8,0,7); ctx.arc(x+4+ex,y-11,1.8,0,7); ctx.fill();
+  ctx.fillStyle='rgba(255,120,150,.5)'; ctx.beginPath(); ctx.arc(x-8+ex,y-7,2.6,0,7); ctx.arc(x+8+ex,y-7,2.6,0,7); ctx.fill();
+  ctx.font='600 12px Fredoka,system-ui,sans-serif'; ctx.textAlign='center'; ctx.fillStyle='#3b2f4a'; ctx.fillText(CONFIG.name,x,y-34);
+}
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const s = zoom, cw = vw/s, ch = vh/s;
+  const cx = Math.max(0,Math.min(W-cw, player.x-cw/2)), cy = Math.max(0,Math.min(H-ch, player.y-ch/2));
+  const ox = cw>W ? (cw-W)/2 : 0, oy = ch>H ? (ch-H)/2 : 0;
+  ctx.fillStyle='#a8dc8d'; ctx.fillRect(0,0,vw,vh);
+  ctx.setTransform(dpr*s,0,0,dpr*s,(ox-cx)*dpr*s,(oy-cy)*dpr*s);
+  ctx.fillStyle=CONFIG.grassColor; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(255,255,255,.18)';
+  for (let gx=0;gx<W;gx+=120) for (let gy=0;gy<H;gy+=120) if(((gx+gy)/120)%2===0) ctx.fillRect(gx,gy,120,120);
+  // paths
+  ctx.lineCap='round'; ctx.strokeStyle='#f3e2b8'; ctx.lineWidth=60;
+  places.forEach(p=>{ ctx.beginPath(); ctx.moveTo(p.doorX,p.doorY); ctx.lineTo(hub.x,hub.y); ctx.stroke(); });
+  ctx.beginPath(); ctx.arc(hub.x,hub.y,100,0,7); ctx.fillStyle='#f3e2b8'; ctx.fill();
+  ctx.fillStyle='#fffaf2'; ctx.beginPath(); ctx.arc(hub.x,hub.y,70,0,7); ctx.fill();
+  ctx.font='28px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🌸',hub.x,hub.y);
+  flowers.forEach(f=>{ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,3,0,7); ctx.fill(); });
+  // depth-sorted objects
+  const items = [...places.map(p=>({y:p.y+p.h,f:()=>drawPlace(p)})), ...trees.map(t=>({y:t.y,f:()=>drawTree(t)})), {y:player.y,f:drawPlayer}];
+  items.sort((a,b)=>a.y-b.y).forEach(i=>i.f());
+  ctx.strokeStyle='rgba(0,0,0,.08)'; ctx.lineWidth=6; ctx.strokeRect(0,0,W,H);
+}
+let last = performance.now();
+function loop(now){ const dt = Math.min(.05,(now-last)/1000); last = now; update(dt); draw(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+openPanel(CONFIG.welcome.title, CONFIG.welcome.sub, CONFIG.welcome.html);
+</script>
+</body>
+</html>
